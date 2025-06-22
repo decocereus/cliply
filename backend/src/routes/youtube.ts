@@ -4,6 +4,16 @@ import { isValidYouTubeUrl, extractVideoId } from "../utils/youtube";
 
 const router = Router();
 
+// Configure ytdl with better error handling
+const ytdlOptions = {
+  requestOptions: {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    },
+  },
+};
+
 // YouTube video info endpoint
 router.post("/info", async (req: Request, res: Response) => {
   try {
@@ -33,7 +43,30 @@ router.post("/info", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Video is not available" });
     }
 
-    const info = await ytdl.getInfo(normalizedUrl);
+    let info;
+    let retries = 3;
+
+    while (retries > 0) {
+      try {
+        info = await ytdl.getInfo(normalizedUrl, ytdlOptions);
+        break;
+      } catch (error: any) {
+        retries--;
+        if (error.statusCode === 429 && retries > 0) {
+          // Wait before retrying (exponential backoff)
+          await new Promise((resolve) =>
+            setTimeout(resolve, (4 - retries) * 2000)
+          );
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    if (!info) {
+      throw new Error("Failed to fetch video info after retries");
+    }
+
     const videoDetails = info.videoDetails;
 
     const duration = parseInt(videoDetails.lengthSeconds);
@@ -72,10 +105,30 @@ router.post("/info", async (req: Request, res: Response) => {
         ? "This video is over 10 minutes long and may take longer to process"
         : null,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("YouTube info error:", error);
 
     if (error instanceof Error) {
+      // Handle rate limiting
+      if (
+        error.message.includes("Status code: 429") ||
+        (error as any).statusCode === 429
+      ) {
+        return res.status(429).json({
+          error:
+            "YouTube rate limit exceeded. Please wait a few minutes before trying again.",
+        });
+      }
+      // Handle other YouTube API errors
+      if (
+        error.message.includes("Status code: 403") ||
+        (error as any).statusCode === 403
+      ) {
+        return res.status(403).json({
+          error:
+            "Access to YouTube video is forbidden. This may be due to regional restrictions or YouTube's anti-bot measures.",
+        });
+      }
       if (error.message.includes("Could not extract functions")) {
         return res.status(400).json({
           error:
@@ -125,7 +178,30 @@ router.post("/download", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Video is not available" });
     }
 
-    const info = await ytdl.getInfo(normalizedUrl);
+    let info;
+    let retries = 3;
+
+    while (retries > 0) {
+      try {
+        info = await ytdl.getInfo(normalizedUrl, ytdlOptions);
+        break;
+      } catch (error: any) {
+        retries--;
+        if (error.statusCode === 429 && retries > 0) {
+          // Wait before retrying (exponential backoff)
+          await new Promise((resolve) =>
+            setTimeout(resolve, (4 - retries) * 2000)
+          );
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    if (!info) {
+      throw new Error("Failed to fetch video info after retries");
+    }
+
     const videoDetails = info.videoDetails;
 
     const duration = parseInt(videoDetails.lengthSeconds);
@@ -152,7 +228,7 @@ router.post("/download", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "No suitable video format found" });
     }
 
-    const videoStream = ytdl(normalizedUrl, { format });
+    const videoStream = ytdl(normalizedUrl, { format, ...ytdlOptions });
 
     const filename = `${videoDetails.title
       .replace(/[^a-zA-Z0-9\s]/g, "")
@@ -174,10 +250,30 @@ router.post("/download", async (req: Request, res: Response) => {
         res.status(500).json({ error: "Stream error occurred" });
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("YouTube download error:", error);
 
     if (error instanceof Error) {
+      // Handle rate limiting
+      if (
+        error.message.includes("Status code: 429") ||
+        (error as any).statusCode === 429
+      ) {
+        return res.status(429).json({
+          error:
+            "YouTube rate limit exceeded. Please wait a few minutes before trying again.",
+        });
+      }
+      // Handle other YouTube API errors
+      if (
+        error.message.includes("Status code: 403") ||
+        (error as any).statusCode === 403
+      ) {
+        return res.status(403).json({
+          error:
+            "Access to YouTube video is forbidden. This may be due to regional restrictions or YouTube's anti-bot measures.",
+        });
+      }
       if (error.message.includes("Could not extract functions")) {
         return res.status(400).json({
           error:

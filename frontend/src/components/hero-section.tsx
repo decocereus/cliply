@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { Terminal, Upload, Youtube, Zap, Loader2 } from "lucide-react";
+import { FILE_SIZE_LIMITS } from "@/lib/utils";
 
 interface HeroSectionProps {
   isLoadingYoutube?: boolean;
@@ -50,6 +51,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           <div className="text-sm font-mono text-foreground">Upload Files</div>
           <div className="text-xs text-muted-foreground mt-1">
             MP4, AVI, MOV, MKV
+          </div>
+          <div className="text-xs text-muted-foreground mt-1 font-semibold">
+            Max: {FILE_SIZE_LIMITS.MAX_SIZE_MB}MB
           </div>
         </div>
 

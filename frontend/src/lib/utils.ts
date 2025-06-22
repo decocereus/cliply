@@ -37,7 +37,6 @@ export const getVideoMetadata = async (
 export const validateVideoFile = (
   file: File
 ): { isValid: boolean; error?: string } => {
-  const maxSize = 800 * 1024 * 1024; // 800MB
   const supportedTypes = [
     "video/mp4",
     "video/avi",
@@ -47,8 +46,11 @@ export const validateVideoFile = (
     "video/webm",
   ];
 
-  if (file.size > maxSize) {
-    return { isValid: false, error: "File size exceeds 800MB limit" };
+  if (file.size > FILE_SIZE_LIMITS.MAX_SIZE_BYTES) {
+    return {
+      isValid: false,
+      error: `File size exceeds ${FILE_SIZE_LIMITS.MAX_SIZE_MB}MB limit`,
+    };
   }
 
   const isSupportedType = supportedTypes.includes(file.type);
@@ -132,12 +134,36 @@ export const extractVideoId = (url: string): string | null => {
   return null;
 };
 
+// Constants for file validation
+export const FILE_SIZE_LIMITS = {
+  MAX_SIZE_BYTES: 400 * 1024 * 1024, // 400MB
+  MAX_SIZE_MB: 400,
+} as const;
+
 export const formatBytes = (bytes: number): string => {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
   const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
+
+export const checkFileSizeLimit = (
+  file: File
+): { isValid: boolean; error?: string; fileSizeMB?: number } => {
+  const fileSizeMB = file.size / (1024 * 1024);
+
+  if (file.size > FILE_SIZE_LIMITS.MAX_SIZE_BYTES) {
+    return {
+      isValid: false,
+      error: `File size (${fileSizeMB.toFixed(1)}MB) exceeds the ${
+        FILE_SIZE_LIMITS.MAX_SIZE_MB
+      }MB limit`,
+      fileSizeMB,
+    };
+  }
+
+  return { isValid: true, fileSizeMB };
 };
 
 export const generateFileName = (

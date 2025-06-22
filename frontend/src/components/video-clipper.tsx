@@ -7,7 +7,7 @@ import { ControlBar } from "./control-bar";
 import { VideoDisplay } from "./video-display";
 import { useVideoClipperContext } from "@/contexts/VideoClipperContext";
 import { toast } from "sonner";
-import { formatTime } from "@/lib/utils";
+import { formatTime, checkFileSizeLimit } from "@/lib/utils";
 
 export const VideoClipper: React.FC = () => {
   const {
@@ -45,6 +45,18 @@ export const VideoClipper: React.FC = () => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Early file size check to provide immediate feedback
+      const sizeCheck = checkFileSizeLimit(file);
+      if (!sizeCheck.isValid) {
+        toast.error("File too large", {
+          description: `${sizeCheck.error}. Please choose a smaller file.`,
+          duration: 6000,
+        });
+        // Clear the file input
+        e.target.value = "";
+        return;
+      }
+
       try {
         await handleFileUpload(file);
         toast.success("Video uploaded successfully", {
@@ -54,6 +66,8 @@ export const VideoClipper: React.FC = () => {
         });
       } catch (error) {
         console.error("File upload error:", error);
+        // Clear the file input on error
+        e.target.value = "";
       }
     }
   };

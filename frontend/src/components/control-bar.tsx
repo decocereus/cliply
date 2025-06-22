@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ControlBarProps } from "@/types";
-import { cn, validateYouTubeUrl } from "@/lib/utils";
+import { cn, validateYouTubeUrl, FILE_SIZE_LIMITS } from "@/lib/utils";
 
 export const ControlBar: React.FC<ControlBarProps> = ({
   isExpanded,
@@ -117,6 +117,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
               variant="terminal"
               size="sm"
               className="group relative overflow-hidden h-9 lg:h-10 flex-shrink-0"
+              title={`Upload video file (Max: ${FILE_SIZE_LIMITS.MAX_SIZE_MB}MB)`}
             >
               {uploadLoadingState?.isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
