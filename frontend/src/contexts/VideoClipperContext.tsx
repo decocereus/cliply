@@ -302,6 +302,7 @@ export const VideoClipperProvider: React.FC<{ children: ReactNode }> = ({
         description: errorMessage,
         duration: 5000,
       });
+      handleReset();
     } finally {
       setIsLoadingYoutube(false);
     }
@@ -399,6 +400,7 @@ export const VideoClipperProvider: React.FC<{ children: ReactNode }> = ({
           message: "",
           error: error instanceof Error ? error.message : "Processing failed",
         });
+        handleReset();
         throw error;
       }
     },

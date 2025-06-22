@@ -25,11 +25,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       <div className="relative mb-8">
         <div className="absolute inset-0 bg-foreground/20 rounded-full blur-xl animate-pulse" />
         <div className="relative bg-background border-2 border-foreground rounded-lg p-6">
-          <Terminal
-            className={`h-16 w-16 text-foreground ${
-              isLoadingYoutube ? "animate-spin" : "animate-pulse"
-            }`}
-          />
+          <Terminal className={`h-16 w-16 text-foreground animate-pulse`} />
         </div>
       </div>
 

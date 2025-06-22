@@ -250,10 +250,10 @@ export const executeYtDlpWithProxy = async (
   args: string[],
   timeout: number = 30000
 ): Promise<{ stdout: string; stderr: string }> => {
-  const proxy = null;
+  const proxy = null; // Disabled per user request
   let ytDlpArgs = [...args];
 
-  console.log("Running yt-dlp without proxy");
+  console.log("🚫 Proxy disabled - running yt-dlp without proxy");
 
   const ytDlpPath = await findYtDlpPath();
   console.log(`🔧 Using yt-dlp at: ${ytDlpPath}`);
@@ -275,9 +275,6 @@ export const executeYtDlpWithProxy = async (
 
     const timeoutHandle = setTimeout(() => {
       ytDlp.kill("SIGKILL");
-      if (proxy) {
-        proxyManager.reportFailure(proxy, new Error("yt-dlp timeout"));
-      }
       reject(new Error("yt-dlp timeout"));
     }, timeout);
 
@@ -285,35 +282,15 @@ export const executeYtDlpWithProxy = async (
       clearTimeout(timeoutHandle);
 
       if (code === 0) {
-        if (proxy) {
-          proxyManager.reportSuccess(proxy);
-        }
         resolve({ stdout, stderr });
       } else {
         const error = new Error(`yt-dlp failed: ${stderr || "Unknown error"}`);
-
-        if (proxy) {
-          const isProxyError =
-            stderr.includes("proxy") ||
-            stderr.includes("connection") ||
-            stderr.includes("timeout") ||
-            stderr.includes("403") ||
-            stderr.includes("429");
-
-          if (isProxyError) {
-            proxyManager.reportFailure(proxy, error);
-          }
-        }
-
         reject(error);
       }
     });
 
     ytDlp.on("error", (error) => {
       clearTimeout(timeoutHandle);
-      if (proxy) {
-        proxyManager.reportFailure(proxy, error);
-      }
       reject(error);
     });
   });
@@ -322,41 +299,73 @@ export const executeYtDlpWithProxy = async (
 export const getVideoInfoWithYtDlp = async (url: string): Promise<any> => {
   const strategies = [
     {
-      name: "iOS + Web",
+      name: "iOS + Web (with geo-bypass)",
       args: [
         "--dump-json",
         "--no-warnings",
         "--no-check-certificates",
+        "--geo-bypass",
+        "--geo-bypass-country",
+        "US",
         "--extractor-args",
         "youtube:player_client=ios,web",
         "--user-agent",
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+        "--add-header",
+        "Accept-Language:en-US,en;q=0.9",
+        "--add-header",
+        "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      ],
+    },
+    {
+      name: "Android + Web (with geo-bypass)",
+      args: [
+        "--dump-json",
+        "--no-warnings",
+        "--no-check-certificates",
+        "--geo-bypass",
+        "--geo-bypass-country",
+        "US",
+        "--extractor-args",
+        "youtube:player_client=android,web",
+        "--user-agent",
+        "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
         "--add-header",
         "Accept-Language:en-US,en;q=0.9",
       ],
     },
     {
-      name: "Android + Web",
+      name: "Web (latest Chrome with geo-bypass)",
       args: [
         "--dump-json",
         "--no-warnings",
         "--no-check-certificates",
-        "--extractor-args",
-        "youtube:player_client=android,web",
-        "--user-agent",
-        "Mozilla/5.0 (Linux; Android 11; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Mobile Safari/537.36",
-      ],
-    },
-    {
-      name: "Web only",
-      args: [
-        "--dump-json",
-        "--no-warnings",
-        "--no-check-certificates",
+        "--geo-bypass",
+        "--geo-bypass-country",
+        "US",
         "--extractor-args",
         "youtube:player_client=web",
         "--user-agent",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "--add-header",
+        "Accept-Language:en-US,en;q=0.9",
+        "--add-header",
+        "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      ],
+    },
+    {
+      name: "Mobile Web (fallback)",
+      args: [
+        "--dump-json",
+        "--no-warnings",
+        "--no-check-certificates",
+        "--geo-bypass",
+        "--extractor-args",
+        "youtube:player_client=mweb",
+        "--user-agent",
+        "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+        "--add-header",
+        "Accept-Language:en-US,en;q=0.9",
       ],
     },
   ];
@@ -377,7 +386,7 @@ export const getVideoInfoWithYtDlp = async (url: string): Promise<any> => {
       args.push(url);
 
       const { stdout: jsonData, stderr: errorData } =
-        await executeYtDlpWithProxy(args, 30000);
+        await executeYtDlpWithProxy(args, 45000); // Increased timeout for geo-bypass
 
       if (jsonData) {
         try {
