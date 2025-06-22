@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import multer from "multer";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { writeFile, unlink, mkdir, rmdir, readdir } from "fs/promises";
+import { unlink, mkdir, rmdir, readdir } from "fs/promises";
 import { createReadStream, promises as fsPromises } from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";

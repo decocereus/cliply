@@ -1,7 +1,13 @@
+import dotenv from "dotenv";
+
+// Load environment variables first
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 import { videoRoutes } from "./routes/video";
 import { youtubeRoutes } from "./routes/youtube";
+import proxyRoutes from "./routes/proxy";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -39,6 +45,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use("/api/video", videoRoutes);
 app.use("/api/youtube", youtubeRoutes);
+app.use("/api/proxy", proxyRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
