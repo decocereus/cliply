@@ -2,14 +2,8 @@ import { Router, Request, Response } from "express";
 import multer from "multer";
 import { exec } from "child_process";
 import { promisify } from "util";
-import {
-  writeFile,
-  unlink,
-  mkdir,
-  readFile,
-  rmdir,
-  readdir,
-} from "fs/promises";
+import { writeFile, unlink, mkdir, rmdir, readdir } from "fs/promises";
+import { createReadStream, promises as fsPromises } from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { existsSync } from "fs";
@@ -17,11 +11,23 @@ import { existsSync } from "fs";
 const execAsync = promisify(exec);
 const router = Router();
 
-// Configure multer for file uploads
+// Configure multer for file uploads - use disk storage to avoid memory issues
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const tempDir = path.join(process.cwd(), "temp");
+      // Ensure temp directory exists
+      require("fs").mkdirSync(tempDir, { recursive: true });
+      cb(null, tempDir);
+    },
+    filename: (req, file, cb) => {
+      const sessionId = uuidv4();
+      const ext = path.extname(file.originalname) || ".mp4";
+      cb(null, `upload_${sessionId}${ext}`);
+    },
+  }),
   limits: {
-    fileSize: 500 * 1024 * 1024, // 500MB limit
+    fileSize: 400 * 1024 * 1024, // 400MB limit - safe with disk storage
   },
 });
 
@@ -123,12 +129,9 @@ router.post(
         console.log(`Processing uploaded file: ${videoFile.originalname}`);
         console.log(`Time range: ${startTimeNum}s - ${endTimeNum}s`);
 
-        const fileExtension =
-          path.extname(videoFile.originalname || "") || ".mp4";
-        inputPath = path.join(tempDir!, `input${fileExtension}`);
+        // File is already on disk thanks to multer.diskStorage
+        inputPath = videoFile.path;
         outputPath = path.join(tempDir!, "output.mp4");
-
-        await writeFile(inputPath, videoFile.buffer);
 
         const duration = endTimeNum - startTimeNum;
         const ffmpegCommand = [
@@ -161,7 +164,8 @@ router.post(
         return res.status(400).json({ error: "Invalid processing type" });
       }
 
-      const outputBuffer = await readFile(finalVideoPath);
+      // Stream the file instead of loading it into memory
+      const stat = await fsPromises.stat(finalVideoPath);
 
       const startMinutes = Math.floor(startTimeNum / 60);
       const startSeconds = Math.floor(startTimeNum % 60);
@@ -171,7 +175,7 @@ router.post(
       const filename = `${originalFilename}_clip_${startMinutes}m${startSeconds}s-${endMinutes}m${endSecondsRemainder}s.mp4`;
 
       console.log(
-        `Successfully processed clip: ${filename} (${outputBuffer.length} bytes)`
+        `Successfully processed clip: ${filename} (${stat.size} bytes)`
       );
 
       res.setHeader("Content-Type", "video/mp4");
@@ -179,10 +183,12 @@ router.post(
         "Content-Disposition",
         `attachment; filename="${filename}"`
       );
-      res.setHeader("Content-Length", outputBuffer.length.toString());
+      res.setHeader("Content-Length", stat.size.toString());
       res.setHeader("Cache-Control", "no-cache");
 
-      res.send(outputBuffer);
+      // Stream the file instead of loading into memory
+      const readStream = createReadStream(finalVideoPath);
+      readStream.pipe(res);
     } catch (error) {
       console.error("Video clipping error:", error);
 
