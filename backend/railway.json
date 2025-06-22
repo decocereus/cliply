@@ -1,0 +1,15 @@
+{
+  "build": {
+    "install": [
+      "mkdir -p /root/.local/bin",
+      "curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /root/.local/bin/yt-dlp",
+      "chmod a+rx /root/.local/bin/yt-dlp"
+    ],
+    "env": {
+      "PATH": "/root/.local/bin:${PATH}"
+    }
+  },
+  "start": {
+    "cmd": "npm start"
+  }
+}
