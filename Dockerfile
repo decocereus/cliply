@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f package-lock.json ]; then npm ci --omit=dev --ignore-scripts; \
   elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --frozen-lockfile; \
   else echo "Lockfile not found." && exit 1; \
   fi
@@ -33,17 +33,18 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
-# Install Python, pip, ffmpeg, and yt-dlp
+# Install Python, pip, ffmpeg, and system dependencies
 RUN apk add --no-cache \
     python3 \
     py3-pip \
     ffmpeg \
     wget \
     curl \
-    bash
+    bash \
+    py3-virtualenv
 
-# Install yt-dlp
-RUN pip3 install yt-dlp
+# Install yt-dlp using --break-system-packages flag
+RUN pip3 install --break-system-packages yt-dlp
 
 ENV NODE_ENV production
 # Uncomment the following line in case you want to disable telemetry during runtime.
