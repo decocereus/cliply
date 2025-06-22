@@ -1,15 +1,12 @@
 {
+  "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "install": [
-      "mkdir -p /root/.local/bin",
-      "curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /root/.local/bin/yt-dlp",
-      "chmod a+rx /root/.local/bin/yt-dlp"
-    ],
-    "env": {
-      "PATH": "/root/.local/bin:${PATH}"
-    }
+    "builder": "nixpacks",
+    "buildCommand": "mkdir -p bin && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp && chmod +x bin/yt-dlp && npm install && npm run build"
   },
-  "start": {
-    "cmd": "npm start"
+  "deploy": {
+    "startCommand": "npm start",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
   }
 }
