@@ -1,7 +1,44 @@
 export const isValidYouTubeUrl = (url: string): boolean => {
+  if (!url || typeof url !== "string") return false;
+
   const youtubeRegex =
     /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-  return youtubeRegex.test(url);
+  return youtubeRegex.test(url.trim());
+};
+
+export const validateYouTubeUrl = (
+  url: string
+): { isValid: boolean; error?: string; normalizedUrl?: string } => {
+  if (!url || typeof url !== "string") {
+    return { isValid: false, error: "URL is required" };
+  }
+
+  const trimmedUrl = url.trim();
+
+  if (!trimmedUrl) {
+    return { isValid: false, error: "URL is required" };
+  }
+
+  try {
+    new URL(
+      trimmedUrl.startsWith("http") ? trimmedUrl : `https://${trimmedUrl}`
+    );
+  } catch {
+    return { isValid: false, error: "Invalid URL format" };
+  }
+
+  if (!isValidYouTubeUrl(trimmedUrl)) {
+    return { isValid: false, error: "Must be a valid YouTube URL" };
+  }
+
+  const videoId = extractVideoId(trimmedUrl);
+  if (!videoId) {
+    return { isValid: false, error: "Could not extract video ID from URL" };
+  }
+
+  const normalizedUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+  return { isValid: true, normalizedUrl };
 };
 
 export const extractVideoId = (url: string): string | null => {

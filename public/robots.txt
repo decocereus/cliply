@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Optimize crawl budget
+Disallow: /api/
+Disallow: /temp/
+Disallow: /_next/
+Disallow: /.*
+
+# Sitemap
+Sitemap: https://cliply.fun/sitemap.xml 

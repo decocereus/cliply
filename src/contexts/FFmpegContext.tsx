@@ -1,8 +1,35 @@
-import { useState, useCallback, useRef } from "react";
+"use client";
+
+import React, {
+  createContext,
+  useContext,
+  ReactNode,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
+import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { getFFmpeg, clipVideo } from "@/lib/ffmpeg";
 import { ProcessingState } from "@/types";
 
-export const useFFmpeg = () => {
+interface FFmpegContextType {
+  isLoaded: boolean;
+  isLoading: boolean;
+  processingState: ProcessingState;
+  loadFFmpeg: () => Promise<void>;
+  processVideo: (
+    videoFile: File,
+    startTime: number,
+    endTime: number
+  ) => Promise<Blob | null>;
+  resetProcessing: () => void;
+}
+
+const FFmpegContext = createContext<FFmpegContextType | undefined>(undefined);
+
+export const FFmpegProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [processingState, setProcessingState] = useState<ProcessingState>({
@@ -11,7 +38,7 @@ export const useFFmpeg = () => {
     message: "",
   });
 
-  const ffmpegRef = useRef<any>(null);
+  const ffmpegRef = useRef<FFmpeg | null>(null);
 
   const loadFFmpeg = useCallback(async () => {
     if (isLoading) return;
@@ -47,7 +74,7 @@ export const useFFmpeg = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading]);
+  }, [isLoading, isLoaded]);
 
   const processVideo = useCallback(
     async (
@@ -55,7 +82,6 @@ export const useFFmpeg = () => {
       startTime: number,
       endTime: number
     ): Promise<Blob | null> => {
-      // Always ensure FFmpeg is loaded
       if (!isLoaded || !ffmpegRef.current) {
         setProcessingState({
           isProcessing: true,
@@ -65,7 +91,6 @@ export const useFFmpeg = () => {
 
         await loadFFmpeg();
 
-        // Wait for state to update
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
@@ -108,7 +133,7 @@ export const useFFmpeg = () => {
         return null;
       }
     },
-    [loadFFmpeg]
+    [isLoaded, loadFFmpeg]
   );
 
   const resetProcessing = useCallback(() => {
@@ -119,7 +144,7 @@ export const useFFmpeg = () => {
     });
   }, []);
 
-  return {
+  const contextValue: FFmpegContextType = {
     isLoaded,
     isLoading,
     processingState,
@@ -127,4 +152,18 @@ export const useFFmpeg = () => {
     processVideo,
     resetProcessing,
   };
+
+  return (
+    <FFmpegContext.Provider value={contextValue}>
+      {children}
+    </FFmpegContext.Provider>
+  );
+};
+
+export const useFFmpegContext = () => {
+  const context = useContext(FFmpegContext);
+  if (context === undefined) {
+    throw new Error("useFFmpegContext must be used within a FFmpegProvider");
+  }
+  return context;
 };

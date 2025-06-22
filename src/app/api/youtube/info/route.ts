@@ -25,12 +25,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For Shorts URLs, convert to regular watch URL format
     const normalizedUrl = url.includes("/shorts/")
       ? `https://www.youtube.com/watch?v=${videoId}`
       : url;
 
-    // Check if video is available
     const isValid = ytdl.validateURL(normalizedUrl);
     if (!isValid) {
       return NextResponse.json(
@@ -42,14 +40,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get video info with additional options for better compatibility
     const info = await ytdl.getInfo(normalizedUrl);
     const videoDetails = info.videoDetails;
 
-    // Get video duration
     const duration = parseInt(videoDetails.lengthSeconds);
 
-    // Check duration (max 15 minutes = 900 seconds)
     if (duration > 900) {
       return NextResponse.json(
         { error: "Video duration exceeds 15 minutes limit" },
@@ -57,10 +52,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if video is over 10 minutes for warning
     const isLongVideo = duration > 600;
 
-    // Get available formats
     const formats = ytdl
       .filterFormats(info.formats, "videoandaudio")
       .filter((format) => format.container === "mp4")
@@ -71,7 +64,6 @@ export async function POST(request: NextRequest) {
         filesize: format.contentLength,
       }))
       .sort((a, b) => {
-        // Sort by quality preference
         const qualityOrder = ["1080p", "720p", "480p", "360p", "240p"];
         const aIndex = qualityOrder.indexOf(a.quality);
         const bIndex = qualityOrder.indexOf(b.quality);
@@ -82,7 +74,7 @@ export async function POST(request: NextRequest) {
       title: videoDetails.title,
       duration,
       thumbnail: videoDetails.thumbnails[0]?.url,
-      formats: formats.slice(0, 3), // Limit to top 3 formats
+      formats: formats.slice(0, 3),
       videoId,
       warning: isLongVideo
         ? "This video is over 10 minutes long and may take longer to process"

@@ -25,13 +25,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For Shorts URLs, convert to regular watch URL format
     const normalizedUrl = url.includes("/shorts/")
       ? `https://www.youtube.com/watch?v=${videoId}`
       : url;
 
-    // Validate URL
-    const isValid = await ytdl.validateURL(normalizedUrl);
+    const isValid = ytdl.validateURL(normalizedUrl);
     if (!isValid) {
       return NextResponse.json(
         { error: "Video is not available" },
@@ -39,11 +37,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get video info to get title for filename
     const info = await ytdl.getInfo(normalizedUrl);
     const videoDetails = info.videoDetails;
 
-    // Check duration (max 15 minutes = 900 seconds)
     const duration = parseInt(videoDetails.lengthSeconds);
     if (duration > 900) {
       return NextResponse.json(
@@ -52,7 +48,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the best format based on quality preference
     let format;
     if (quality) {
       format = ytdl.chooseFormat(info.formats, {
@@ -73,10 +68,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create a readable stream
     const videoStream = ytdl(normalizedUrl, { format });
 
-    // Set up response headers for file download
     const filename = `${videoDetails.title
       .replace(/[^a-zA-Z0-9\s]/g, "")
       .replace(/\s+/g, "_")}.mp4`;
@@ -87,12 +80,10 @@ export async function POST(request: NextRequest) {
       "Cache-Control": "no-cache",
     });
 
-    // If content length is available, set it
     if (format.contentLength) {
       headers.set("Content-Length", format.contentLength);
     }
 
-    // Create a ReadableStream from the ytdl stream
     const readableStream = new ReadableStream({
       start(controller) {
         videoStream.on("data", (chunk) => {

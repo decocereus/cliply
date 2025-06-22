@@ -7,15 +7,8 @@ export const getFFmpeg = async (): Promise<FFmpeg> => {
   if (ffmpeg && ffmpeg.loaded) {
     return ffmpeg;
   }
-
   ffmpeg = new FFmpeg();
-
-  console.log("Loading FFmpeg...");
-
-  // Load FFmpeg using the locally installed core package
   await ffmpeg.load();
-
-  console.log("FFmpeg loaded successfully");
   return ffmpeg;
 };
 
@@ -26,51 +19,44 @@ export const clipVideo = async (
   onProgress?: (progress: number) => void
 ): Promise<Blob> => {
   const ffmpeg = await getFFmpeg();
-
-  // Clear any existing files
   try {
     await ffmpeg.deleteFile("input.mp4");
     await ffmpeg.deleteFile("output.mp4");
-  } catch (e) {
-    // Files don't exist, ignore
+  } catch {
+    // Files don't exist, which is fine
   }
 
-  // Write input file
   await ffmpeg.writeFile("input.mp4", await fetchFile(videoFile));
 
-  // Set up progress tracking
   if (onProgress) {
     ffmpeg.on("progress", ({ progress }) => {
       onProgress(Math.round(progress * 100));
     });
   }
 
-  // Calculate duration
-  const duration = endTime - startTime;
-
-  // Run FFmpeg command to clip video
-  // Using -c copy to maintain quality when possible
-  await ffmpeg.exec([
+  const ffmpegArgs = [
     "-i",
     "input.mp4",
-    "-ss",
-    startTime.toString(),
-    "-t",
-    duration.toString(),
+    "-filter_complex",
+    `[0:v]trim=start=${startTime}:end=${endTime},setpts=PTS-STARTPTS[v];[0:a]atrim=start=${startTime}:end=${endTime},asetpts=PTS-STARTPTS[a]`,
+    "-map",
+    "[v]",
+    "-map",
+    "[a]",
     "-c",
     "copy",
     "-avoid_negative_ts",
     "make_zero",
     "output.mp4",
-  ]);
+  ];
 
-  // Read the output file
+  await ffmpeg.exec(ffmpegArgs);
+
   const data = await ffmpeg.readFile("output.mp4");
   const videoBlob = new Blob([new Uint8Array(data as unknown as ArrayBuffer)], {
     type: "video/mp4",
   });
 
-  // Cleanup
   await ffmpeg.deleteFile("input.mp4");
   await ffmpeg.deleteFile("output.mp4");
 
@@ -113,7 +99,7 @@ export const validateVideoFile = (
     "video/avi",
     "video/quicktime",
     "video/x-msvideo",
-    "video/x-matroska", // MKV
+    "video/x-matroska",
     "video/webm",
   ];
 
@@ -121,10 +107,8 @@ export const validateVideoFile = (
     return { isValid: false, error: "File size exceeds 800MB limit" };
   }
 
-  // Check MIME type first
   const isSupportedType = supportedTypes.includes(file.type);
 
-  // Fallback to file extension check for formats with inconsistent MIME types
   let isSupportedExtension = false;
   if (!isSupportedType) {
     const extension = file.name.toLowerCase().split(".").pop();
@@ -154,5 +138,63 @@ export const formatTime = (seconds: number): string => {
 
 export const parseTimeString = (timeString: string): number => {
   const [minutes, seconds] = timeString.split(":").map(Number);
-  return (minutes || 0) * 60 + (seconds || 0);
+  const result = (minutes || 0) * 60 + (seconds || 0);
+  return result;
+};
+
+export const generateVideoThumbnail = async (
+  videoFile: File
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) {
+      reject(new Error("Canvas context not available"));
+      return;
+    }
+
+    video.addEventListener("loadedmetadata", () => {
+      const aspectRatio = video.videoWidth / video.videoHeight;
+      const thumbnailWidth = 320;
+      const thumbnailHeight = thumbnailWidth / aspectRatio;
+
+      canvas.width = thumbnailWidth;
+      canvas.height = thumbnailHeight;
+
+      video.currentTime = video.duration * 0.1;
+    });
+
+    video.addEventListener("seeked", () => {
+      try {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const thumbnailUrl = URL.createObjectURL(blob);
+              resolve(thumbnailUrl);
+            } else {
+              reject(new Error("Failed to generate thumbnail blob"));
+            }
+          },
+          "image/jpeg",
+          0.8
+        );
+      } catch (error) {
+        reject(error);
+      } finally {
+        URL.revokeObjectURL(video.src);
+      }
+    });
+
+    video.addEventListener("error", () => {
+      reject(new Error("Failed to load video for thumbnail generation"));
+      URL.revokeObjectURL(video.src);
+    });
+
+    video.src = URL.createObjectURL(videoFile);
+    video.load();
+  });
 };
