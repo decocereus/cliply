@@ -11,7 +11,6 @@ import { existsSync } from "fs";
 const execAsync = promisify(exec);
 const router = Router();
 
-// Configure multer for file uploads - use disk storage to avoid memory issues
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
