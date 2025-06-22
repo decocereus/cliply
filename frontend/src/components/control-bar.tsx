@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ControlBarProps } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, validateYouTubeUrl } from "@/lib/utils";
 
 export const ControlBar: React.FC<ControlBarProps> = ({
   isExpanded,
@@ -58,12 +58,10 @@ export const ControlBar: React.FC<ControlBarProps> = ({
     setYoutubeUrl(url);
 
     if (url.trim()) {
-      import("@/lib/youtube").then(({ validateYouTubeUrl }) => {
-        const validation = validateYouTubeUrl(url);
-        setUrlError(
-          validation.isValid ? null : validation.error || "Invalid URL"
-        );
-      });
+      const validation = validateYouTubeUrl(url);
+      setUrlError(
+        validation.isValid ? null : validation.error || "Invalid URL"
+      );
     } else {
       setUrlError(null);
     }

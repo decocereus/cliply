@@ -16,8 +16,9 @@ import {
   getVideoMetadata,
   validateVideoFile,
   generateVideoThumbnail,
-} from "@/lib/ffmpeg";
-import { validateYouTubeUrl } from "@/lib/youtube";
+  validateYouTubeUrl,
+} from "@/lib/utils";
+import { apiUrls } from "@/lib/api";
 import type {
   VideoFile,
   YouTubeVideoInfo,
@@ -275,7 +276,7 @@ export const VideoClipperProvider: React.FC<{ children: ReactNode }> = ({
     }
 
     try {
-      const response = await fetch("/api/youtube/info", {
+      const response = await fetch(apiUrls.youtubeInfo, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -351,7 +352,7 @@ export const VideoClipperProvider: React.FC<{ children: ReactNode }> = ({
           stage: "processing",
         });
 
-        const response = await fetch("/api/video/clip", {
+        const response = await fetch(apiUrls.videoClip, {
           method: "POST",
           body: formData,
         });

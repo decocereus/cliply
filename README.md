@@ -1,207 +1,234 @@
-# Video Clipper Web App
+# Clipper - Video Clipping Application
 
-A free, modern video clipping web application built with Next.js that allows users to upload videos or provide YouTube URLs, set start/end times, and download clipped videos in the same quality as the original.
+A full-stack video clipping application with YouTube integration, featuring a Next.js frontend and Express.js backend.
 
-## ✨ Features
+## Project Structure
 
-- **File Upload Support**: Upload video files up to 800MB and 2 minutes duration
-- **YouTube Integration**: Paste YouTube URLs to clip videos directly
-- **High-Quality Processing**: Maintains original video quality using FFmpeg.wasm
-- **Supported Formats**: MP4, AVI, MOV, MKV
-- **Client-Side Processing**: All video processing happens in your browser
-- **Real-Time Progress**: Visual progress tracking during processing
-- **Modern UI**: Built with shadcn/ui components and Tailwind CSS
-- **Responsive Design**: Works perfectly on desktop and mobile devices
-- **Free to Use**: No server costs, completely client-side
+```
+clipper/
+├── frontend/          # Next.js React application
+│   ├── src/
+│   │   ├── app/       # Next.js app router
+│   │   ├── components/ # React components
+│   │   ├── contexts/  # React contexts
+│   │   ├── lib/       # Utility functions
+│   │   └── types/     # TypeScript type definitions
+│   └── package.json
+├── backend/           # Express.js API server
+│   ├── src/
+│   │   ├── routes/    # API route handlers
+│   │   └── utils/     # Utility functions
+│   └── package.json
+└── package.json       # Root package.json for managing both apps
+```
 
-## 🚀 Quick Start
+## Features
 
-### Prerequisites
+- **Video Upload & Clipping**: Upload videos and clip specific segments
+- **YouTube Integration**: Download and clip YouTube videos directly
+- **Real-time Processing**: Progress tracking during video processing
+- **Modern UI**: Responsive design with dark/light theme support
+- **FFmpeg Processing**: Server-side video processing with FFmpeg
+- **File Download**: Direct download of processed clips
 
-- Node.js 18+
-- npm or yarn package manager
+## Prerequisites
 
-### Installation
+Before running this application, make sure you have the following installed:
 
-1. Clone the repository:
+- **Node.js** (v18 or higher)
+- **npm** or **yarn**
+- **FFmpeg** (for video processing)
+- **yt-dlp** (for YouTube video downloading)
+
+### Installing FFmpeg
+
+#### macOS (using Homebrew)
 
 ```bash
-git clone <your-repo-url>
+brew install ffmpeg
+```
+
+#### Ubuntu/Debian
+
+```bash
+sudo apt update
+sudo apt install ffmpeg
+```
+
+#### Windows
+
+Download from [FFmpeg official website](https://ffmpeg.org/download.html) and add to PATH.
+
+### Installing yt-dlp
+
+#### macOS (using Homebrew)
+
+```bash
+brew install yt-dlp
+```
+
+#### Ubuntu/Debian
+
+```bash
+sudo apt install yt-dlp
+```
+
+#### Windows/Others
+
+```bash
+pip install yt-dlp
+```
+
+## Setup Instructions
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
 cd clipper
 ```
 
-2. Install dependencies:
+### 2. Install Dependencies
 
 ```bash
-npm install
+npm run install:all
 ```
 
-3. Start the development server:
+This will install dependencies for the root project, frontend, and backend.
+
+### 3. Environment Configuration
+
+#### Frontend Environment
+
+Create `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
+
+#### Backend Environment
+
+Create `backend/.env`:
+
+```env
+PORT=3001
+FRONTEND_URL=http://localhost:3000
+NODE_ENV=development
+```
+
+### 4. Development Setup
+
+#### Run Both Frontend and Backend
 
 ```bash
 npm run dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+This will start both the frontend (on port 3000) and backend (on port 3001) concurrently.
 
-## 🏗️ Project Structure
+#### Run Individually
 
-```
-clipper/
-├── src/
-│   ├── app/
-│   │   ├── api/
-│   │   │   └── youtube/          # YouTube API routes
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   └── globals.css
-│   ├── components/
-│   │   ├── ui/                   # shadcn/ui components
-│   │   ├── VideoClipper.tsx      # Main app component
-│   │   ├── FileUploader.tsx      # Drag & drop uploader
-│   │   ├── TimeControls.tsx      # Time input controls
-│   │   └── ProgressBar.tsx       # Processing progress
-│   ├── hooks/
-│   │   ├── useFFmpeg.ts          # FFmpeg management
-│   │   └── useVideoProcessor.ts  # Video processing logic
-│   ├── lib/
-│   │   ├── ffmpeg.ts             # FFmpeg utilities
-│   │   ├── youtube.ts            # YouTube utilities
-│   │   └── utils.ts              # General utilities
-│   └── types/
-│       └── index.ts              # TypeScript definitions
-├── next.config.ts                # Next.js configuration
-└── package.json
+**Frontend only:**
+
+```bash
+npm run dev:frontend
 ```
 
-## 🎯 Usage
+**Backend only:**
 
-### File Upload Method
-
-1. Click "Upload File" or drag and drop a video file
-2. Supported formats: MP4, AVI, MOV, MKV (max 800MB, 2 minutes)
-3. Set start and end times in MM:SS format
-4. Click "Create Clip" to process
-5. Download your clipped video
-
-### YouTube Method
-
-1. Click "YouTube URL"
-2. Paste a YouTube video URL
-3. Click "Load Video Info" to validate and load metadata
-4. Set start and end times
-5. Click "Create Clip" to process and download
-
-### Time Format
-
-- Use MM:SS format (e.g., 01:30 for 1 minute 30 seconds)
-- Start time must be before end time
-- End time cannot exceed video duration
-- Minimum clip duration is 1 second
-
-## 🛠️ Technical Details
-
-### Video Processing
-
-- **Client-Side**: All processing happens in the browser using FFmpeg.wasm
-- **Quality Preservation**: Uses copy codec when possible to maintain quality
-- **Memory Management**: Automatic cleanup of temporary files and URLs
-- **Progress Tracking**: Real-time progress updates during processing
-
-### YouTube Integration
-
-- **Server-Side API**: Secure YouTube video information fetching
-- **Duration Validation**: Automatic checking of 2-minute limit
-- **Error Handling**: Comprehensive error messages for various scenarios
-- **Streaming Downloads**: Efficient handling of YouTube video downloads
-
-### Browser Compatibility
-
-- Modern browsers with SharedArrayBuffer support
-- Chrome, Firefox, Safari, Edge (latest versions)
-- Requires Cross-Origin-Embedder-Policy headers for FFmpeg.wasm
-
-## 🔧 Configuration
-
-### Environment Variables
-
-No environment variables required for basic functionality.
-
-### Next.js Configuration
-
-The app includes special headers for FFmpeg.wasm support:
-
-```typescript
-async headers() {
-  return [
-    {
-      source: "/(.*)",
-      headers: [
-        {
-          key: "Cross-Origin-Embedder-Policy",
-          value: "require-corp",
-        },
-        {
-          key: "Cross-Origin-Opener-Policy",
-          value: "same-origin",
-        },
-      ],
-    },
-  ];
-}
+```bash
+npm run dev:backend
 ```
 
-## 📦 Deployment
+## Production Build
 
-### Vercel (Recommended)
+### Build Both Applications
 
-1. Push your code to GitHub
-2. Connect your repository to Vercel
-3. Deploy with default settings
-4. The app will work completely free on Vercel's hobby plan
+```bash
+npm run build
+```
 
-### Other Platforms
+### Start Production Servers
 
-The app can be deployed on any platform that supports Next.js:
+```bash
+npm run start
+```
 
-- Netlify
-- Railway
-- Render
-- Self-hosted
+## API Endpoints
 
-## 🚨 Limitations
+The backend provides the following API endpoints:
 
-- **File Size**: Maximum 800MB per video
-- **Duration**: Maximum 2 minutes per video
-- **Browser Memory**: Large files may consume significant browser memory
-- **YouTube**: Some videos may be restricted or unavailable
+### YouTube Routes
 
-## 🐛 Troubleshooting
+- `POST /api/youtube/info` - Get YouTube video information
+- `POST /api/youtube/download` - Download YouTube video
+
+### Video Processing Routes
+
+- `POST /api/video/clip` - Process and clip video segments
+
+## Usage
+
+1. **Upload a Video**: Click the upload button and select a video file
+2. **Or Use YouTube**: Enter a YouTube URL to import a video
+3. **Set Clip Times**: Use the time controls to set start and end times
+4. **Process Clip**: Click the clip button to process your video segment
+5. **Download**: Download the processed clip when ready
+
+## Technology Stack
+
+### Frontend
+
+- **Next.js 15** - React framework with app router
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **Radix UI** - UI components
+- **Sonner** - Toast notifications
+- **FFmpeg.wasm** - Client-side video processing
+
+### Backend
+
+- **Express.js** - Web framework
+- **TypeScript** - Type safety
+- **Multer** - File upload handling
+- **FFmpeg** - Video processing
+- **yt-dlp** - YouTube video downloading
+- **@distube/ytdl-core** - YouTube video information
+
+## Development
+
+### Frontend Development
+
+The frontend is a Next.js application with:
+
+- Modern React patterns (hooks, context, etc.)
+- TypeScript for type safety
+- Responsive design with Tailwind CSS
+- Dark/light theme support
+
+### Backend Development
+
+The backend is an Express.js API server with:
+
+- RESTful API design
+- TypeScript for type safety
+- File upload and processing capabilities
+- FFmpeg integration for video processing
+
+## Troubleshooting
 
 ### Common Issues
 
-1. **FFmpeg fails to load**
+1. **FFmpeg not found**: Ensure FFmpeg is installed and available in PATH
+2. **yt-dlp not found**: Ensure yt-dlp is installed and available in PATH
+3. **Port conflicts**: Change ports in environment files if needed
+4. **CORS issues**: Ensure frontend URL is properly configured in backend environment
 
-   - Ensure your browser supports SharedArrayBuffer
-   - Check that CORS headers are properly configured
+### Logs
 
-2. **YouTube video unavailable**
+Check console logs in both frontend and backend terminals for debugging information.
 
-   - Video may be private, restricted, or deleted
-   - Some regions may have access restrictions
-
-3. **Processing fails**
-   - Check file size and duration limits
-   - Ensure sufficient browser memory available
-
-### Browser Support
-
-- ✅ Chrome 67+
-- ✅ Firefox 79+
-- ✅ Safari 15.2+
-- ✅ Edge 79+
-
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -209,17 +236,6 @@ The app can be deployed on any platform that supports Next.js:
 4. Test thoroughly
 5. Submit a pull request
 
-## 📄 License
+## License
 
-This project is open source and available under the [MIT License](LICENSE).
-
-## 🙏 Acknowledgments
-
-- [FFmpeg.wasm](https://ffmpegwasm.netlify.app/) for client-side video processing
-- [ytdl-core](https://github.com/fent/node-ytdl-core) for YouTube integration
-- [shadcn/ui](https://ui.shadcn.com/) for beautiful UI components
-- [Tailwind CSS](https://tailwindcss.com/) for styling
-
----
-
-Made with ❤️ using Next.js, FFmpeg.wasm, and modern web technologies.
+[Add your license information here]

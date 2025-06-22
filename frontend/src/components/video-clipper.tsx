@@ -7,7 +7,7 @@ import { ControlBar } from "./control-bar";
 import { VideoDisplay } from "./video-display";
 import { useVideoClipperContext } from "@/contexts/VideoClipperContext";
 import { toast } from "sonner";
-import { formatTime } from "@/lib/ffmpeg";
+import { formatTime } from "@/lib/utils";
 
 export const VideoClipper: React.FC = () => {
   const {

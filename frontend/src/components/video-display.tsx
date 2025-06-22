@@ -3,7 +3,7 @@
 import type React from "react";
 import Image from "next/image";
 import { Clock, FileWarning } from "lucide-react";
-import { formatTime } from "@/lib/ffmpeg";
+import { formatTime } from "@/lib/utils";
 import { VideoDisplayProps } from "@/types";
 
 export const VideoDisplay: React.FC<VideoDisplayProps> = ({
