@@ -90,6 +90,35 @@ import {
 import { proxyRefreshService } from "./proxy-refresh";
 import { getSecureCookiePath } from "./cookie-security";
 
+// Function to find yt-dlp executable path
+const findYtDlpPath = (): string => {
+  const possiblePaths = [
+    "yt-dlp",
+    "/usr/local/bin/yt-dlp",
+    "/usr/bin/yt-dlp",
+    "~/.local/bin/yt-dlp",
+    "/opt/render/.local/bin/yt-dlp",
+    "./yt-dlp", // For cases where we download it to the current directory
+    path.join(process.cwd(), "yt-dlp"),
+  ];
+
+  // Check if yt-dlp exists in any of these paths
+  for (const ytDlpPath of possiblePaths) {
+    try {
+      if (fs.existsSync(ytDlpPath)) {
+        console.log(`Found yt-dlp at: ${ytDlpPath}`);
+        return ytDlpPath;
+      }
+    } catch (error) {
+      // Continue to next path
+    }
+  }
+
+  // Default to 'yt-dlp' and let system PATH handle it
+  console.log("Using default yt-dlp path");
+  return "yt-dlp";
+};
+
 // Enhanced YouTube Request Queue with proxy rotation
 class YouTubeRequestQueue {
   private queue: Array<{
@@ -209,8 +238,10 @@ export const executeYtDlpWithProxy = async (
     console.log(`Using proxy: ${proxy.host}:${proxy.port}`);
   }
 
+  const ytDlpPath = findYtDlpPath();
+
   return new Promise((resolve, reject) => {
-    const ytDlp = spawn("yt-dlp", ytDlpArgs);
+    const ytDlp = spawn(ytDlpPath, ytDlpArgs);
 
     let stdout = "";
     let stderr = "";
