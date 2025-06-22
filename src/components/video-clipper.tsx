@@ -191,21 +191,19 @@ export const VideoClipper: React.FC = () => {
       {/* Expandable Floating Action Bar */}
       <div className="fixed bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 z-10 w-[calc(100vw-2rem)] sm:w-auto max-w-none sm:max-w-4xl">
         <div
-          className={`bg-background rounded-xl border border-foreground backdrop-blur-sm transition-all duration-300 ${
-            isBarExpanded
-              ? "py-2 sm:py-2.5 px-3 sm:px-6"
-              : "py-2 sm:py-2.5 px-2 sm:px-4"
+          className={`bg-background rounded-xl border border-foreground backdrop-blur-sm transition-all duration-300 py-2 sm:py-2.5 ${
+            isBarExpanded ? "px-3 sm:px-6" : "px-2 sm:px-4"
           }`}
         >
-          {/* Main Action Row */}
-          <div className="flex items-center gap-1 sm:gap-3 justify-center">
+          {/* All Controls in Single Horizontal Row */}
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-3 justify-center overflow-x-auto">
             {/* Main Action Buttons */}
             <Button
               onClick={handleUploadClick}
               disabled={processingState.isProcessing}
               variant="terminal"
               size="sm"
-              className="h-8 sm:h-9 px-2 sm:px-3"
+              className="h-8 sm:h-9 px-2 sm:px-3 flex-shrink-0"
             >
               <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
               {!isBarExpanded && (
@@ -218,7 +216,7 @@ export const VideoClipper: React.FC = () => {
               disabled={processingState.isProcessing}
               variant="terminal"
               size="sm"
-              className="h-8 sm:h-9 px-2 sm:px-3"
+              className="h-8 sm:h-9 px-2 sm:px-3 flex-shrink-0"
             >
               <Youtube className="h-3 w-3 sm:h-4 sm:w-4" />
               {!isBarExpanded && (
@@ -232,7 +230,7 @@ export const VideoClipper: React.FC = () => {
                 disabled={processingState.isProcessing}
                 variant="terminal"
                 size="sm"
-                className="transition-all duration-300 h-8 sm:h-9 px-2 sm:px-3"
+                className="transition-all duration-300 h-8 sm:h-9 px-2 sm:px-3 flex-shrink-0"
               >
                 {!isBarExpanded && (
                   <>
@@ -249,24 +247,12 @@ export const VideoClipper: React.FC = () => {
               </Button>
             )}
 
-            {(currentVideo || downloadState.isReady) && (
-              <Button
-                onClick={handleReset}
-                disabled={processingState.isProcessing}
-                size="sm"
-                variant="terminal"
-                className="h-8 sm:h-9 px-2 sm:px-3"
-              >
-                <RotateCcw className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
+            {/* Expanded Time Controls - Inline */}
+            {isBarExpanded && currentVideo && (
+              <>
+                <div className="w-px h-6 bg-foreground mx-1 flex-shrink-0" />
 
-          {/* Expanded Time Controls - Always Horizontal */}
-          {isBarExpanded && currentVideo && (
-            <div className="mt-2 md:mt-0 md:ml-2 md:pl-3 md:border-l md:border-foreground pt-2 md:pt-0">
-              <div className="flex items-center gap-1 md:gap-3 overflow-x-auto">
-                <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0">
                   <div className="text-foreground text-xs whitespace-nowrap">
                     start:
                   </div>
@@ -276,13 +262,13 @@ export const VideoClipper: React.FC = () => {
                     value={startTime}
                     onChange={(e) => handleStartTimeChange(e.target.value)}
                     disabled={processingState.isProcessing}
-                    className={`bg-background border-foreground text-foreground font-mono text-xs md:text-sm w-16 md:w-20 h-7 md:h-8 flex-shrink-0 ${
+                    className={`bg-background border-foreground text-foreground font-mono text-xs w-20 h-7 sm:h-8 flex-shrink-0 ${
                       timeErrors.start ? "border-red-600" : ""
                     }`}
                   />
                 </div>
 
-                <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0">
                   <div className="text-foreground text-xs whitespace-nowrap">
                     end:
                   </div>
@@ -292,13 +278,13 @@ export const VideoClipper: React.FC = () => {
                     value={endTime}
                     onChange={(e) => handleEndTimeChange(e.target.value)}
                     disabled={processingState.isProcessing}
-                    className={`bg-background border-foreground text-foreground font-mono text-xs md:text-sm w-16 md:w-20 h-7 md:h-8 flex-shrink-0 ${
+                    className={`bg-background border-foreground text-foreground font-mono text-xs w-20 h-7 sm:h-8 flex-shrink-0 ${
                       timeErrors.end ? "border-red-600" : ""
                     }`}
                   />
                 </div>
 
-                <div className="text-foreground text-xs flex-shrink-0 min-w-0">
+                <div className="text-foreground text-xs flex-shrink-0 min-w-0 hidden sm:block">
                   {getClipDuration()}
                 </div>
 
@@ -307,15 +293,27 @@ export const VideoClipper: React.FC = () => {
                   disabled={processingState.isProcessing || !isValidToClip}
                   variant="terminal"
                   size="sm"
-                  className="h-7 md:h-8 px-2 md:px-3 text-xs flex-shrink-0"
+                  className="h-7 sm:h-8 px-2 sm:px-3 text-xs flex-shrink-0"
                 >
                   <Scissors className="h-3 w-3 mr-1" />
                   <span className="hidden sm:inline">Process</span>
                   <span className="sm:hidden">Go</span>
                 </Button>
-              </div>
-            </div>
-          )}
+              </>
+            )}
+
+            {(currentVideo || downloadState.isReady) && (
+              <Button
+                onClick={handleReset}
+                disabled={processingState.isProcessing}
+                size="sm"
+                variant="terminal"
+                className="h-8 sm:h-9 px-2 sm:px-3 flex-shrink-0"
+              >
+                <RotateCcw className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
 
           {/* Error Messages */}
           {isBarExpanded && (timeErrors.start || timeErrors.end) && (
