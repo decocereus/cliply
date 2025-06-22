@@ -1,6 +1,7 @@
 import { Terminal } from "lucide-react";
 import React from "react";
 import { ThemeToggle } from "./ui/theme-toggle";
+import Link from "next/link";
 
 const Header = () => {
   return (
@@ -10,7 +11,16 @@ const Header = () => {
           <Terminal className="h-6 w-6 text-foreground animate-bounce" />
           <span>cliply.exe</span>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-x-2">
+          <Link
+            href={"https://x.com/decocereus"}
+            target="_blank"
+            className="hover:underline"
+          >
+            <p className="text-sm text-muted-foreground">@decocereus</p>
+          </Link>
+          <ThemeToggle />
+        </div>
       </div>
     </div>
   );
