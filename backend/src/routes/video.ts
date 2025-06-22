@@ -44,8 +44,18 @@ router.post(
       const startTimeNum = parseFloat(startTime);
       const endTimeNum = parseFloat(endTime);
 
-      if (!processingType || !startTimeNum || !endTimeNum) {
+      if (
+        !processingType ||
+        startTime === undefined ||
+        endTime === undefined ||
+        isNaN(startTimeNum) ||
+        isNaN(endTimeNum)
+      ) {
         return res.status(400).json({ error: "Missing required parameters" });
+      }
+
+      if (startTimeNum < 0 || endTimeNum < 0 || startTimeNum >= endTimeNum) {
+        return res.status(400).json({ error: "Invalid time range" });
       }
 
       const sessionId = uuidv4();
@@ -113,9 +123,24 @@ router.post(
         ].join(" ");
 
         console.log("Stage 2 - FFmpeg optimization:", optimizeCommand);
-        await execAsync(optimizeCommand);
 
-        finalVideoPath = outputPath!;
+        try {
+          await execAsync(optimizeCommand);
+
+          // Check if optimized file was actually created
+          if (existsSync(outputPath)) {
+            finalVideoPath = outputPath;
+            console.log("✅ FFmpeg optimization successful");
+          } else {
+            console.log("⚠️ FFmpeg optimization failed - using original clip");
+            finalVideoPath = tempClipPath;
+          }
+        } catch (ffmpegError) {
+          console.error("❌ FFmpeg optimization failed:", ffmpegError);
+          console.log("🔄 Using original clip instead");
+          finalVideoPath = tempClipPath;
+        }
+
         originalFilename = "youtube_clip";
       } else if (processingType === "upload") {
         const videoFile = req.file;
@@ -187,6 +212,34 @@ router.post(
 
       // Stream the file instead of loading into memory
       const readStream = createReadStream(finalVideoPath);
+
+      // Handle cleanup after streaming is complete
+      const cleanup = async () => {
+        try {
+          if (inputPath && existsSync(inputPath)) await unlink(inputPath);
+          if (outputPath && existsSync(outputPath)) await unlink(outputPath);
+          if (tempClipPath && existsSync(tempClipPath))
+            await unlink(tempClipPath);
+          if (tempDir && existsSync(tempDir)) {
+            const files = await readdir(tempDir);
+            for (const file of files) {
+              await unlink(path.join(tempDir, file));
+            }
+            await rmdir(tempDir);
+          }
+        } catch (cleanupError) {
+          console.error("Cleanup error:", cleanupError);
+        }
+      };
+
+      // Cleanup when stream ends or errors
+      readStream.on("end", cleanup);
+      readStream.on("close", cleanup);
+      readStream.on("error", cleanup);
+
+      // Also cleanup if response ends unexpectedly
+      res.on("close", cleanup);
+
       readStream.pipe(res);
     } catch (error) {
       console.error("Video clipping error:", error);
@@ -204,9 +257,7 @@ router.post(
         }
       }
 
-      return res.status(500).json({ error: errorMessage });
-    } finally {
-      // Cleanup temporary files
+      // Cleanup on error
       try {
         if (inputPath && existsSync(inputPath)) await unlink(inputPath);
         if (outputPath && existsSync(outputPath)) await unlink(outputPath);
@@ -222,6 +273,8 @@ router.post(
       } catch (cleanupError) {
         console.error("Cleanup error:", cleanupError);
       }
+
+      return res.status(500).json({ error: errorMessage });
     }
   }
 );
