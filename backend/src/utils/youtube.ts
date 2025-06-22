@@ -1,3 +1,17 @@
+import { spawn, exec } from "child_process";
+import path from "path";
+import fs from "fs";
+import { promisify } from "util";
+import {
+  proxyManager,
+  loadProxiesFromConfig,
+  ProxyManager,
+} from "./proxy-manager";
+import { proxyRefreshService } from "./proxy-refresh";
+import { getSecureCookiePath } from "./cookie-security";
+
+const execAsync = promisify(exec);
+
 export const isValidYouTubeUrl = (url: string): boolean => {
   if (!url || typeof url !== "string") return false;
 
@@ -79,30 +93,44 @@ export const generateFileName = (
   return `${sanitizedTitle}_${start}s-${end}s.mp4`;
 };
 
-import { spawn } from "child_process";
-import path from "path";
-import fs from "fs";
-import {
-  proxyManager,
-  loadProxiesFromConfig,
-  ProxyManager,
-} from "./proxy-manager";
-import { proxyRefreshService } from "./proxy-refresh";
-import { getSecureCookiePath } from "./cookie-security";
+const downloadYtDlp = async (): Promise<boolean> => {
+  try {
+    console.log("🔄 Downloading yt-dlp binary at runtime...");
+    const binDir = path.join(process.cwd(), "bin");
+    const ytDlpPath = path.join(binDir, "yt-dlp");
+
+    // Create bin directory if it doesn't exist
+    if (!fs.existsSync(binDir)) {
+      fs.mkdirSync(binDir, { recursive: true });
+    }
+
+    await execAsync(
+      `curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ${ytDlpPath} && chmod +x ${ytDlpPath}`
+    );
+
+    if (fs.existsSync(ytDlpPath)) {
+      console.log("✅ yt-dlp downloaded successfully");
+      return true;
+    }
+  } catch (error) {
+    console.error("❌ Failed to download yt-dlp:", error);
+  }
+  return false;
+};
 
 // Function to find yt-dlp executable path
-const findYtDlpPath = (): string => {
+const findYtDlpPath = async (): Promise<string> => {
+  // Check the paths in order of preference
   const possiblePaths = [
-    "yt-dlp",
+    path.resolve(__dirname, "../../bin/yt-dlp"),
+    path.join(process.cwd(), "yt-dlp"),
+    path.join(__dirname, "../yt-dlp"),
     "/usr/local/bin/yt-dlp",
     "/usr/bin/yt-dlp",
-    "~/.local/bin/yt-dlp",
     "/opt/render/.local/bin/yt-dlp",
-    "./yt-dlp", // For cases where we download it to the current directory
-    path.join(process.cwd(), "yt-dlp"),
+    "yt-dlp",
   ];
 
-  // Check if yt-dlp exists in any of these paths
   for (const ytDlpPath of possiblePaths) {
     try {
       if (fs.existsSync(ytDlpPath)) {
@@ -110,16 +138,19 @@ const findYtDlpPath = (): string => {
         return ytDlpPath;
       }
     } catch (error) {
-      // Continue to next path
+      console.error(`Error checking path ${ytDlpPath}:`, error);
     }
   }
 
-  // Default to 'yt-dlp' and let system PATH handle it
-  console.log("Using default yt-dlp path");
+  const downloaded = await downloadYtDlp();
+  if (downloaded) {
+    return path.join(process.cwd(), "bin", "yt-dlp");
+  }
+
+  console.log("Using system PATH for yt-dlp");
   return "yt-dlp";
 };
 
-// Enhanced YouTube Request Queue with proxy rotation
 class YouTubeRequestQueue {
   private queue: Array<{
     request: () => Promise<any>;
@@ -127,8 +158,8 @@ class YouTubeRequestQueue {
     maxRetries: number;
   }> = [];
   private processing = false;
-  private readonly delay = 2000; // 2 seconds between requests
-  private readonly maxRetries = 3; // Maximum retry attempts per request
+  private readonly delay = 2000;
+  private readonly maxRetries = 3;
 
   async add<T>(
     request: () => Promise<T>,
@@ -163,22 +194,18 @@ class YouTubeRequestQueue {
       try {
         await item.request();
       } catch (error: any) {
-        // If it's a rate limit or proxy error and we have retries left, retry with a different proxy
         if (item.retries < item.maxRetries && this.shouldRetry(error)) {
           item.retries++;
           console.log(
             `Retrying request (attempt ${item.retries}/${item.maxRetries})`
           );
 
-          // Add delay before retry
           await new Promise((resolve) =>
             setTimeout(resolve, this.delay * item.retries)
           );
 
-          // Push back to front of queue for immediate retry
           this.queue.unshift(item);
         } else {
-          // Max retries exceeded or non-retryable error
           console.error(
             `Request failed after ${item.retries} retries:`,
             error.message
@@ -209,36 +236,28 @@ class YouTubeRequestQueue {
   }
 }
 
-// Global request queue instance
 export const youtubeQueue = new YouTubeRequestQueue();
 
-// Initialize proxy system
 loadProxiesFromConfig();
 
-// Start automatic proxy refresh service
 console.log("🚀 Initializing automatic proxy refresh system...");
 proxyRefreshService.start();
 
-// Video info cache
 const videoInfoCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 3600000; // 1 hour
+const CACHE_TTL = 3600000;
 
-// Enhanced yt-dlp wrapper with proxy rotation
 export const executeYtDlpWithProxy = async (
   args: string[],
   timeout: number = 30000
 ): Promise<{ stdout: string; stderr: string }> => {
-  const proxy = proxyManager.getNextProxy();
+  const proxy = null;
   let ytDlpArgs = [...args];
 
-  // Add proxy if available
-  if (proxy) {
-    const proxyUrl = proxyManager.getProxyUrl(proxy);
-    ytDlpArgs.push("--proxy", proxyUrl);
-    console.log(`Using proxy: ${proxy.host}:${proxy.port}`);
-  }
+  console.log("Running yt-dlp without proxy");
 
-  const ytDlpPath = findYtDlpPath();
+  const ytDlpPath = await findYtDlpPath();
+  console.log(`🔧 Using yt-dlp at: ${ytDlpPath}`);
+  console.log(`🔧 Full command: ${ytDlpPath} ${ytDlpArgs.join(" ")}`);
 
   return new Promise((resolve, reject) => {
     const ytDlp = spawn(ytDlpPath, ytDlpArgs);
@@ -274,7 +293,6 @@ export const executeYtDlpWithProxy = async (
         const error = new Error(`yt-dlp failed: ${stderr || "Unknown error"}`);
 
         if (proxy) {
-          // Check if it's a proxy-related error
           const isProxyError =
             stderr.includes("proxy") ||
             stderr.includes("connection") ||
@@ -301,69 +319,114 @@ export const executeYtDlpWithProxy = async (
   });
 };
 
-// yt-dlp wrapper functions
 export const getVideoInfoWithYtDlp = async (url: string): Promise<any> => {
-  const args = [
-    "--dump-json",
-    "--no-warnings",
-    "--no-check-certificates",
-    "--extractor-args",
-    "youtube:player_client=ios,web",
-    "--user-agent",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15",
+  const strategies = [
+    {
+      name: "iOS + Web",
+      args: [
+        "--dump-json",
+        "--no-warnings",
+        "--no-check-certificates",
+        "--extractor-args",
+        "youtube:player_client=ios,web",
+        "--user-agent",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+        "--add-header",
+        "Accept-Language:en-US,en;q=0.9",
+      ],
+    },
+    {
+      name: "Android + Web",
+      args: [
+        "--dump-json",
+        "--no-warnings",
+        "--no-check-certificates",
+        "--extractor-args",
+        "youtube:player_client=android,web",
+        "--user-agent",
+        "Mozilla/5.0 (Linux; Android 11; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Mobile Safari/537.36",
+      ],
+    },
+    {
+      name: "Web only",
+      args: [
+        "--dump-json",
+        "--no-warnings",
+        "--no-check-certificates",
+        "--extractor-args",
+        "youtube:player_client=web",
+        "--user-agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+      ],
+    },
   ];
 
-  // Add secure cookies if available
-  const secureCookiePath = getSecureCookiePath();
-  if (secureCookiePath && fs.existsSync(secureCookiePath)) {
-    args.push("--cookies", secureCookiePath);
-  }
+  let lastError: Error | null = null;
 
-  // Add URL at the end
-  args.push(url);
+  for (const strategy of strategies) {
+    try {
+      console.log(`🎯 Trying extraction strategy: ${strategy.name}`);
 
-  try {
-    const { stdout: jsonData, stderr: errorData } = await executeYtDlpWithProxy(
-      args,
-      30000
-    );
+      const args = [...strategy.args];
 
-    if (jsonData) {
-      try {
-        const lines = jsonData
-          .trim()
-          .split("\n")
-          .filter((line) => line.trim());
-        const lastLine = lines[lines.length - 1];
-        const videoInfo = JSON.parse(lastLine);
-        return videoInfo;
-      } catch (e) {
-        throw new Error("Failed to parse video info: " + e);
+      const secureCookiePath = getSecureCookiePath();
+      if (secureCookiePath && fs.existsSync(secureCookiePath)) {
+        args.push("--cookies", secureCookiePath);
       }
-    } else {
-      // Parse common yt-dlp errors
-      if (
-        errorData.includes("429") ||
-        errorData.includes("Too Many Requests")
-      ) {
-        throw new Error("YouTube rate limit exceeded");
-      } else if (errorData.includes("403") || errorData.includes("Forbidden")) {
-        throw new Error("Access forbidden - video may be restricted");
-      } else if (errorData.includes("Video unavailable")) {
-        throw new Error("Video unavailable");
-      } else if (errorData.includes("Private video")) {
-        throw new Error("Video is private");
+
+      args.push(url);
+
+      const { stdout: jsonData, stderr: errorData } =
+        await executeYtDlpWithProxy(args, 30000);
+
+      if (jsonData) {
+        try {
+          const lines = jsonData
+            .trim()
+            .split("\n")
+            .filter((line) => line.trim());
+          const lastLine = lines[lines.length - 1];
+          const videoInfo = JSON.parse(lastLine);
+          console.log(`✅ Successfully extracted with: ${strategy.name}`);
+          return videoInfo;
+        } catch (e) {
+          throw new Error("Failed to parse video info: " + e);
+        }
       } else {
-        throw new Error(`yt-dlp failed: ${errorData || "Unknown error"}`);
+        if (
+          errorData.includes("429") ||
+          errorData.includes("Too Many Requests")
+        ) {
+          throw new Error("YouTube rate limit exceeded");
+        } else if (
+          errorData.includes("403") ||
+          errorData.includes("Forbidden")
+        ) {
+          throw new Error("Access forbidden - video may be restricted");
+        } else if (errorData.includes("Video unavailable")) {
+          throw new Error("Video unavailable");
+        } else if (errorData.includes("Private video")) {
+          throw new Error("Video is private");
+        } else {
+          throw new Error(`yt-dlp failed: ${errorData || "Unknown error"}`);
+        }
       }
+    } catch (error: any) {
+      console.log(`❌ Strategy ${strategy.name} failed: ${error.message}`);
+      lastError = error;
+
+      if (
+        error.message.includes("rate limit") ||
+        error.message.includes("Access forbidden")
+      ) {
+        throw error;
+      }
+
+      continue;
     }
-  } catch (error: any) {
-    // Re-throw with better error messages
-    if (error.message.includes("yt-dlp timeout")) {
-      throw new Error("yt-dlp timeout");
-    }
-    throw error;
   }
+
+  throw lastError || new Error("All extraction strategies failed");
 };
 
 export const getCachedVideoInfo = async (url: string): Promise<any> => {
@@ -380,7 +443,6 @@ export const getCachedVideoInfo = async (url: string): Promise<any> => {
 export const getVideoFormats = async (url: string): Promise<any[]> => {
   const info = await getCachedVideoInfo(url);
 
-  // Filter and format the available formats
   const formats = (info.formats || [])
     .filter(
       (format: any) =>
@@ -399,10 +461,9 @@ export const getVideoFormats = async (url: string): Promise<any[]> => {
     .sort((a: any, b: any) => {
       const aHeight = parseInt(a.quality);
       const bHeight = parseInt(b.quality);
-      return bHeight - aHeight; // Sort by quality descending
+      return bHeight - aHeight;
     });
 
-  // Remove duplicates and limit to top 3
   const uniqueFormats = formats.filter(
     (format: any, index: number, arr: any[]) => {
       return arr.findIndex((f) => f.quality === format.quality) === index;
@@ -423,10 +484,14 @@ export const downloadVideoStream = async (
     const args = [
       "--no-warnings",
       "--no-check-certificates",
+      "--extractor-args",
+      "youtube:player_client=ios,web,android,mweb",
       "--user-agent",
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+      "--add-header",
+      "Accept-Language:en-US,en;q=0.9",
       "-o",
-      "-", // Output to stdout
+      "-",
     ];
 
     if (formatId) {
@@ -435,20 +500,17 @@ export const downloadVideoStream = async (
       args.push("-f", "best[ext=mp4][height<=1080]/best[ext=mp4]/best");
     }
 
-    // Add secure cookies if available
     const secureCookiePath = getSecureCookiePath();
     if (secureCookiePath && fs.existsSync(secureCookiePath)) {
       args.push("--cookies", secureCookiePath);
     }
 
-    // Add proxy if available
     if (proxy) {
       const proxyUrl = proxyManager.getProxyUrl(proxy);
       args.push("--proxy", proxyUrl);
       console.log(`Using proxy for download: ${proxy.host}:${proxy.port}`);
     }
 
-    // Add URL at the end
     args.push(url);
 
     const ytDlp = spawn("yt-dlp", args);
@@ -457,7 +519,6 @@ export const downloadVideoStream = async (
       .replace(/[^a-zA-Z0-9\s]/g, "")
       .replace(/\s+/g, "_")}.mp4`;
 
-    // Handle proxy success/failure reporting
     ytDlp.on("exit", (code) => {
       if (proxy) {
         if (code === 0) {
@@ -475,7 +536,6 @@ export const downloadVideoStream = async (
       const errorOutput = data.toString();
       console.error("yt-dlp stderr:", errorOutput);
 
-      // Check for proxy-related errors
       if (
         proxy &&
         (errorOutput.includes("proxy") || errorOutput.includes("connection"))

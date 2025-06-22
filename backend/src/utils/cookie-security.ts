@@ -30,7 +30,6 @@ export class CookieSecurityManager {
       );
       throw new Error("Missing encryption key in production environment");
     }
-    console.log("key", process.env.COOKIE_ENCRYPTION_KEY);
     let defaultKey = process.env.COOKIE_ENCRYPTION_KEY!;
     if (!defaultKey) {
       console.warn(
