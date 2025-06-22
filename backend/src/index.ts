@@ -7,9 +7,29 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://www.cliply.fun",
+  "https://cliply.fun",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      const normalizedOrigin = origin.replace(/\/$/, "");
+      const normalizedAllowed = allowedOrigins.map((url) =>
+        url?.replace(/\/$/, "")
+      );
+
+      if (normalizedAllowed.includes(normalizedOrigin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
