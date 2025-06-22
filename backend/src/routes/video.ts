@@ -9,6 +9,34 @@ import { v4 as uuidv4 } from "uuid";
 import { existsSync } from "fs";
 
 const execAsync = promisify(exec);
+
+// Import the findYtDlpPath function from youtube utils
+const findYtDlpPath = async (): Promise<string> => {
+  // Check the paths in order of preference
+  const possiblePaths = [
+    path.resolve(__dirname, "../bin/yt-dlp"),
+    path.join(process.cwd(), "bin/yt-dlp"),
+    path.join(__dirname, "../yt-dlp"),
+    "/usr/local/bin/yt-dlp",
+    "/usr/bin/yt-dlp",
+    "/opt/render/.local/bin/yt-dlp",
+    "yt-dlp",
+  ];
+
+  for (const ytDlpPath of possiblePaths) {
+    try {
+      if (existsSync(ytDlpPath)) {
+        console.log(`Found yt-dlp at: ${ytDlpPath}`);
+        return ytDlpPath;
+      }
+    } catch (error) {
+      console.error(`Error checking path ${ytDlpPath}:`, error);
+    }
+  }
+
+  console.log("Using system PATH for yt-dlp");
+  return "yt-dlp";
+};
 const router = Router();
 
 const upload = multer({
@@ -73,9 +101,10 @@ router.post(
         console.log(`Processing YouTube video: ${youtubeUrl}`);
         console.log(`Time range: ${startTimeNum}s - ${endTimeNum}s`);
 
+        const ytDlpPath = await findYtDlpPath();
         const downloadPath = path.join(tempDir, "clip.%(ext)s");
         const ytDlpCommand = [
-          "yt-dlp",
+          `"${ytDlpPath}"`,
           `--download-sections "*${startTimeNum}-${endTimeNum}"`,
           `"${youtubeUrl}"`,
           "-o",

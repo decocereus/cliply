@@ -2,7 +2,7 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "nixpacks",
-    "buildCommand": "apt-get update && apt-get install -y python3 python3-pip && mkdir -p bin && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp && chmod +x bin/yt-dlp && npm install && npm run build"
+    "buildCommand": "apt-get update && apt-get install -y python3 python3-pip ffmpeg && mkdir -p bin && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp && chmod +x bin/yt-dlp && ln -sf /app/bin/yt-dlp /usr/local/bin/yt-dlp && npm install && npm run build"
   },
   "deploy": {
     "startCommand": "npm start",
