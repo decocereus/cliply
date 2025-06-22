@@ -110,7 +110,7 @@ router.post(
         console.log("Stage 2 - FFmpeg optimization:", optimizeCommand);
         await execAsync(optimizeCommand);
 
-        finalVideoPath = outputPath;
+        finalVideoPath = outputPath!;
         originalFilename = "youtube_clip";
       } else if (processingType === "upload") {
         const videoFile = req.file;
@@ -123,9 +123,10 @@ router.post(
         console.log(`Processing uploaded file: ${videoFile.originalname}`);
         console.log(`Time range: ${startTimeNum}s - ${endTimeNum}s`);
 
-        const fileExtension = path.extname(videoFile.originalname) || ".mp4";
-        inputPath = path.join(tempDir, `input${fileExtension}`);
-        outputPath = path.join(tempDir, "output.mp4");
+        const fileExtension =
+          path.extname(videoFile.originalname || "") || ".mp4";
+        inputPath = path.join(tempDir!, `input${fileExtension}`);
+        outputPath = path.join(tempDir!, "output.mp4");
 
         await writeFile(inputPath, videoFile.buffer);
 
@@ -151,8 +152,11 @@ router.post(
         console.log("FFmpeg command:", ffmpegCommand);
         await execAsync(ffmpegCommand);
 
-        finalVideoPath = outputPath;
-        originalFilename = videoFile.originalname.replace(/\.[^/.]+$/, "");
+        finalVideoPath = outputPath!;
+        originalFilename = (videoFile.originalname || "video").replace(
+          /\.[^/.]+$/,
+          ""
+        );
       } else {
         return res.status(400).json({ error: "Invalid processing type" });
       }
