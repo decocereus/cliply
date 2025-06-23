@@ -5,6 +5,7 @@ import { AppProviders } from "@/contexts/AppProviders";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Header from "@/components/header";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -151,6 +152,7 @@ export default function RootLayout({
             <Header />
             {children}
           </AppProviders>
+          <Analytics />
           <Toaster position="top-right" richColors closeButton />
         </ThemeProvider>
       </body>
