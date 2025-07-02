@@ -7,6 +7,7 @@ import { createReadStream, promises as fsPromises } from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { existsSync } from "fs";
+import { getSecureCookiePath } from "../utils/cookie-security";
 
 const execAsync = promisify(exec);
 
@@ -103,6 +104,10 @@ router.post(
 
         const ytDlpPath = await findYtDlpPath();
         const downloadPath = path.join(tempDir, "clip.%(ext)s");
+
+        // Get secure cookie path
+        const secureCookiePath = getSecureCookiePath();
+
         const ytDlpCommand = [
           `"${ytDlpPath}"`,
           `--download-sections "*${startTimeNum}-${endTimeNum}"`,
@@ -112,10 +117,16 @@ router.post(
           "--format",
           "best[ext=mp4]/best",
           "--no-playlist",
-        ].join(" ");
+        ];
 
-        console.log("Stage 1 - yt-dlp command:", ytDlpCommand);
-        await execAsync(ytDlpCommand);
+        // Add cookies if available
+        if (secureCookiePath && existsSync(secureCookiePath)) {
+          ytDlpCommand.splice(2, 0, "--cookies", `"${secureCookiePath}"`);
+        }
+
+        const finalCommand = ytDlpCommand.join(" ");
+        console.log("Stage 1 - yt-dlp command:", finalCommand);
+        await execAsync(finalCommand);
 
         const possibleExtensions = [".mp4", ".webm", ".mkv"];
         let downloadedFile: string | null = null;
